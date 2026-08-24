@@ -7,7 +7,6 @@
 #include "../include/peek.h"
 
 #define CHUNK_SIZE 1024
-// Change the signature to include 'int is_reverse'
 void process_line(char *line, ssize_t len, int number_lines, int *line_num, int is_reverse) {
     int is_empty = 1;
     for (ssize_t i = 0; i < len; i++) {
@@ -17,7 +16,6 @@ void process_line(char *line, ssize_t len, int number_lines, int *line_num, int 
         }
     }
     if (!is_empty && number_lines) {
-        // Print and adjust the number based on the direction!
         if (is_reverse) printf("%d ", (*line_num)--);
         else printf("%d ", (*line_num)++);
     }
@@ -27,16 +25,15 @@ void process_line(char *line, ssize_t len, int number_lines, int *line_num, int 
     putchar('\n');
 }
 
-void peek_normal(int fd, int number_lines) {
+void peek_normal(int fd, int number_lines, int *line_num) {
     char buf[4096];
     ssize_t bytes;
-    int line_num = 1;
     int at_start = 1;
     
     while ((bytes = read(fd, buf, sizeof(buf))) > 0) {
         for (ssize_t i = 0; i < bytes; i++) {
             if (at_start && buf[i] != '\n') {
-                if (number_lines) printf("%d ", line_num++);
+                if (number_lines) printf("%d ", (*line_num)++);
                 at_start = 0;
             }
             if (buf[i] != '\n') putchar(buf[i]);
@@ -48,22 +45,26 @@ void peek_normal(int fd, int number_lines) {
     }
 }
 
-void peek_reverse_seekable(int fd, int number_lines) {
+void peek_reverse_seekable(int fd, int number_lines, int *line_num) {
     off_t size = lseek(fd, 0, SEEK_END);
     if (size <= 0) return;
-    int total_lines = 0;
+    int non_empty_count = 0;
     if (number_lines) {
         lseek(fd, 0, SEEK_SET); 
         char count_buf[CHUNK_SIZE];
         ssize_t c_bytes;
-        int last_was_nl = 1;
+        int line_has_content = 0;
         while ((c_bytes = read(fd, count_buf, CHUNK_SIZE)) > 0) {
             for (ssize_t i = 0; i < c_bytes; i++) {
-                if (count_buf[i] == '\n') total_lines++;
+                if (count_buf[i] == '\n') {
+                    if (line_has_content) non_empty_count++;
+                    line_has_content = 0;
+                } else {
+                    line_has_content = 1;
+                }
             }
-            if (c_bytes > 0) last_was_nl = (count_buf[c_bytes-1] == '\n');
         }
-        if (!last_was_nl && size > 0) total_lines++;
+        if (line_has_content) non_empty_count++;
         
         lseek(fd, 0, SEEK_END); 
     }
@@ -72,7 +73,7 @@ void peek_reverse_seekable(int fd, int number_lines) {
     off_t pos = size;
     char *line_buf = NULL;
     size_t line_len = 0;
-    int line_num = number_lines ? total_lines : 1; 
+    int rev_num = number_lines ? (*line_num + non_empty_count - 1) : 1;
 
     while (pos > 0) {
         ssize_t to_read = (pos >= CHUNK_SIZE) ? CHUNK_SIZE : pos;
@@ -85,7 +86,7 @@ void peek_reverse_seekable(int fd, int number_lines) {
                 char *rev = malloc(line_len + 1);
                 for(size_t j = 0; j < line_len; j++) rev[j] = line_buf[line_len - 1 - j];
                 rev[line_len] = '\0';
-                process_line(rev, line_len, number_lines, &line_num, 1);
+                process_line(rev, line_len, number_lines, &rev_num, 1);
                 free(rev);
                 line_len = 0;
                 free(line_buf);
@@ -100,13 +101,14 @@ void peek_reverse_seekable(int fd, int number_lines) {
         char *rev = malloc(line_len + 1);
         for(size_t j = 0; j < line_len; j++) rev[j] = line_buf[line_len - 1 - j];
         rev[line_len] = '\0';
-        process_line(rev, line_len, number_lines, &line_num, 1);
+        process_line(rev, line_len, number_lines, &rev_num, 1);
         free(rev);
         free(line_buf);
     }
+    if (number_lines) *line_num += non_empty_count;
 }
 
-void peek_reverse_stream(int fd, int number_lines) {
+void peek_reverse_stream(int fd, int number_lines, int *line_num) {
     char *full = NULL;
     size_t total = 0;
     char buf[4096];
@@ -119,23 +121,29 @@ void peek_reverse_stream(int fd, int number_lines) {
     }
     
     if (total == 0) return;
-    int total_lines = 0;
+    int non_empty_count = 0;
     if (number_lines) {
+        int line_has_content = 0;
         for(size_t k = 0; k < total; k++) {
-            if (full[k] == '\n') total_lines++;
+            if (full[k] == '\n') {
+                if (line_has_content) non_empty_count++;
+                line_has_content = 0;
+            } else {
+                line_has_content = 1;
+            }
         }
-        if (full[total - 1] != '\n') total_lines++;
+        if (line_has_content) non_empty_count++;
     }
     char *line_buf = NULL;
     size_t line_len = 0;
-    int line_num = number_lines ? total_lines : 1; 
+    int rev_num = number_lines ? (*line_num + non_empty_count - 1) : 1;
 
     for(ssize_t i = total - 1; i >= 0; i--) {
-        if (full[i] == '\n' && i != total - 1) {
+        if (full[i] == '\n' && i != (ssize_t)(total - 1)) {
             char *rev = malloc(line_len + 1);
             for(size_t j = 0; j < line_len; j++) rev[j] = line_buf[line_len - 1 - j];
             rev[line_len] = '\0';
-            process_line(rev, line_len, number_lines, &line_num, 1);
+            process_line(rev, line_len, number_lines, &rev_num, 1);
             free(rev);
             line_len = 0;
             free(line_buf);
@@ -149,11 +157,12 @@ void peek_reverse_stream(int fd, int number_lines) {
         char *rev = malloc(line_len + 1);
         for(size_t j = 0; j < line_len; j++) rev[j] = line_buf[line_len - 1 - j];
         rev[line_len] = '\0';
-        process_line(rev, line_len, number_lines, &line_num, 1);
+        process_line(rev, line_len, number_lines, &rev_num, 1);
         free(rev);
         free(line_buf);
     }
     free(full);
+    if (number_lines) *line_num += non_empty_count;
 }
 
 void execute_peek(token tokens[], int count) {
@@ -178,6 +187,8 @@ void execute_peek(token tokens[], int count) {
         file_count = 1;
     }
 
+    int line_num = 1;
+
     for (int i = 0; i < file_count; i++) {
         int fd;
         if (strcmp(files[i], "-") == 0) {
@@ -197,12 +208,12 @@ void execute_peek(token tokens[], int count) {
 
         if (reverse) {
             if (lseek(fd, 0, SEEK_CUR) != -1) {
-                peek_reverse_seekable(fd, num_lines);
+                peek_reverse_seekable(fd, num_lines, &line_num);
             } else {
-                peek_reverse_stream(fd, num_lines);
+                peek_reverse_stream(fd, num_lines, &line_num);
             }
         } else {
-            peek_normal(fd, num_lines);
+            peek_normal(fd, num_lines, &line_num);
         }
 
         if (fd != STDIN_FILENO) close(fd);

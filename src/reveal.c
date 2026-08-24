@@ -10,7 +10,7 @@ int compare_strings(const void *a, const void *b) {
     return strcmp(*(const char **)a, *(const char **)b);
 }
 
-void reveal_dir(const char *path, int show_hidden, int recursive) {
+void reveal_dir(const char *path, int show_hidden, int recursive, const char *prefix) {
     DIR *dir = opendir(path);
     if (!dir) return;
 
@@ -29,25 +29,21 @@ void reveal_dir(const char *path, int show_hidden, int recursive) {
     qsort(entries, count, sizeof(char *), compare_strings);
 
     for (int i = 0; i < count; i++) {
-        printf("%s\n", entries[i]);
-    }
+        char subpath[2048];
+        snprintf(subpath, sizeof(subpath), "%s/%s", path, entries[i]);
+        struct stat st;
+        int is_directory = (stat(subpath, &st) == 0 && S_ISDIR(st.st_mode));
+        int is_dot = (strcmp(entries[i], ".") == 0 || strcmp(entries[i], "..") == 0);
 
-    if (recursive) {
-        for (int i = 0; i < count; i++) {
-            if (strcmp(entries[i], ".") == 0 || strcmp(entries[i], "..") == 0) {
-                free(entries[i]);
-                continue;
-            }
-            char subpath[2048];
-            snprintf(subpath, sizeof(subpath), "%s/%s", path, entries[i]);
-            struct stat st;
-            if (stat(subpath, &st) == 0 && S_ISDIR(st.st_mode)) {
-                reveal_dir(subpath, show_hidden, recursive);
-            }
-            free(entries[i]);
+        if (is_directory && !is_dot && recursive) {
+            printf("%s%s/\n", prefix, entries[i]);
+            char new_prefix[2048];
+            snprintf(new_prefix, sizeof(new_prefix), "%s%s/", prefix, entries[i]);
+            reveal_dir(subpath, show_hidden, recursive, new_prefix);
+        } else {
+            printf("%s%s\n", prefix, entries[i]);
         }
-    } else {
-        for(int i = 0; i < count; i++) free(entries[i]);
+        free(entries[i]);
     }
     free(entries);
 }
@@ -90,5 +86,5 @@ void execute_reveal(token tokens[], int count, char *home_dir, char *prev_dir) {
         printf("reveal: no such directory\n");
         return;
     }
-    reveal_dir(target_path, show_hidden, recursive);
+    reveal_dir(target_path, show_hidden, recursive, "");
 }

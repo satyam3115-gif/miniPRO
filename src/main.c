@@ -16,7 +16,7 @@ int main(){
     gethostname(host_name, sizeof(host_name));
     struct passwd *profile = getpwuid(getuid());
     char *username = profile->pw_name;
-char prev_dir[1024] = "";
+    char prev_dir[1024] = "";
     while(1){
         char curr_dir[1024];
         getcwd(curr_dir, sizeof(curr_dir));
@@ -28,8 +28,7 @@ char prev_dir[1024] = "";
         fflush(stdout);
 
         char input[1024];
-        fgets(input, sizeof(input), stdin);
-        if (input == NULL) {
+        if (fgets(input, sizeof(input), stdin) == NULL) {
             printf("\n");
             break;
         }

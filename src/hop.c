@@ -124,7 +124,7 @@ void execute_hop(token tokens[], int count, char *home_dir, char *prev_dir) {
             if (chdir(prev_dir) == 0) success = 1;
         } 
         else if (strcmp(arg, ".") == 0) {
-            success = 1; 
+            continue; 
         } 
         else if (strcmp(arg, "..") == 0) {
             if (chdir("..") == 0) success = 1;
