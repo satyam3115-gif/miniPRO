@@ -94,7 +94,7 @@ int frecency_lookup(char *home_dir, char *name) {
     return 0; 
 }
 
-void hoped(token tokens[], int count, char *home_dir, char *prev_dir) {
+void execute_hop(token tokens[], int count, char *home_dir, char *prev_dir) {
     char current_before_hop[1024];
     char new_curr[1024];
 

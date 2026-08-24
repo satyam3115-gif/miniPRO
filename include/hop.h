@@ -3,6 +3,6 @@
 
 #include "lexer.h"
 
-void hoped(token tokens[], int count, char *home_dir, char *prev_dir);
+void execute_hop(token tokens[], int count, char *home_dir, char *prev_dir);
 
 #endif

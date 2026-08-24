@@ -5,6 +5,10 @@
 #include <pwd.h>
 #include "../include/parser.h"
 #include "../include/lexer.h"
+#include "../include/hop.h"
+#include "../include/reveal.h"
+#include "../include/peek.h"
+#include "../include/locate.h"
 
 int main(){
     char home_dir[1024], host_name[1024];
@@ -12,7 +16,7 @@ int main(){
     gethostname(host_name, sizeof(host_name));
     struct passwd *profile = getpwuid(getuid());
     char *username = profile->pw_name;
-
+char prev_dir[1024] = "";
     while(1){
         char curr_dir[1024];
         getcwd(curr_dir, sizeof(curr_dir));
@@ -25,7 +29,11 @@ int main(){
 
         char input[1024];
         fgets(input, sizeof(input), stdin);
-        int idx = strspn(input, "\n");
+        if (input == NULL) {
+            printf("\n");
+            break;
+        }
+        int idx = strcspn(input, "\n");
         input[idx] = '\0';
 
         token tokens[1000];
@@ -43,13 +51,13 @@ int main(){
         }
 
         if(strcmp(tokens[0].values, "hop") == 0) {
-
-        }else if(strcmp(tokens[0].values, "reveal") == 0) {
-
-        }else if(strcmp(tokens[0].values, "peek") == 0) {
-
-        }else if(strcmp(tokens[0].values, "locate") == 0) {
-
+            execute_hop(tokens, count, home_dir, prev_dir);
+        } else if(strcmp(tokens[0].values, "reveal") == 0) {
+            execute_reveal(tokens, count, home_dir, prev_dir);
+        } else if(strcmp(tokens[0].values, "peek") == 0) {
+            execute_peek(tokens, count);
+        } else if(strcmp(tokens[0].values, "locate") == 0) {
+            execute_locate(tokens, count);
         }
     }
     return 0;
