@@ -15,7 +15,7 @@ int parse(token tokens[], int count) {
         } 
         else if(tokens[i].type == OP_AMP) {
             if(i+1 < count) {
-                i++; 
+                  i++; 
                 if(tokens[i].type != WORD) {
                     return -1;
                 }

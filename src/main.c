@@ -9,6 +9,7 @@
 #include "../include/reveal.h"
 #include "../include/peek.h"
 #include "../include/locate.h"
+#include "../include/executor.h"
 
 int main(){
     char home_dir[1024], host_name[1024];
@@ -49,15 +50,7 @@ int main(){
             continue;
         }
 
-        if(strcmp(tokens[0].values, "hop") == 0) {
-            execute_hop(tokens, count, home_dir, prev_dir);
-        } else if(strcmp(tokens[0].values, "reveal") == 0) {
-            execute_reveal(tokens, count, home_dir, prev_dir);
-        } else if(strcmp(tokens[0].values, "peek") == 0) {
-            execute_peek(tokens, count);
-        } else if(strcmp(tokens[0].values, "locate") == 0) {
-            execute_locate(tokens, count);
-        }
+        execute_pipeline(tokens, count, home_dir, prev_dir);
     }
     return 0;
 } 
