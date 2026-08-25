@@ -55,7 +55,7 @@ void execute_reveal(token tokens[], int count, char *home_dir, char *prev_dir) {
 
     for (int i = 1; i < count; i++) {
         if (tokens[i].values[0] == '-' && strlen(tokens[i].values) > 1 && strcmp(tokens[i].values, "-") != 0) {
-            for (int j = 1; j < strlen(tokens[i].values); j++) {
+            for (int j = 1; j < (int)strlen(tokens[i].values); j++) {
                 if (tokens[i].values[j] == 'a') show_hidden = 1;
                 else if (tokens[i].values[j] == 't') recursive = 1;
                 else {

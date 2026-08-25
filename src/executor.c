@@ -191,11 +191,11 @@ static void execute_command(Command *cmd, char *home_dir, char *prev_dir) {
     exit(1);
 }
 
-void execute_pipeline(token tokens[], int count, char *home_dir, char *prev_dir) {
+static void execute_single_pipeline(token tokens[], int count, char *home_dir, char *prev_dir, int bg) {
     Command cmds[MAX_CMDS];
     int num_cmds = parse_pipeline(tokens, count, cmds);
 
-    if (num_cmds == 1 && cmds[0].arg_count > 0 && strcmp(cmds[0].args[0], "hop") == 0) {
+    if (!bg && num_cmds == 1 && cmds[0].arg_count > 0 && strcmp(cmds[0].args[0], "hop") == 0) {
         token clean_tokens[MAX_ARGS];
         for (int k = 0; k < cmds[0].arg_count; k++) {
             clean_tokens[k].type = WORD;
@@ -212,8 +212,8 @@ void execute_pipeline(token tokens[], int count, char *home_dir, char *prev_dir)
         if (i < num_cmds - 1) pipe(pipes[i]);
 
         pids[i] = fork();
-        if (pids[i] == 0) { 
-            
+        if (pids[i] == 0) {
+
             if (i > 0) dup2(pipes[i - 1][0], STDIN_FILENO);
             if (i < num_cmds - 1) dup2(pipes[i][1], STDOUT_FILENO);
 
@@ -234,7 +234,34 @@ void execute_pipeline(token tokens[], int count, char *home_dir, char *prev_dir)
         if (i < num_cmds - 1) close(pipes[i][1]);
     }
 
-    for (int i = 0; i < num_cmds; i++) {
-        waitpid(pids[i], NULL, 0);
+    if (!bg) {
+        for (int i = 0; i < num_cmds; i++) {
+            waitpid(pids[i], NULL, 0);
+        }
+    }
+}
+
+void execute_pipeline(token tokens[], int count, char *home_dir, char *prev_dir) {
+    int start = 0;
+
+    while (start < count) {
+        int end = start;
+        int bg = 0;
+
+        while (end < count && tokens[end].type != OP_SEMI && tokens[end].type != OP_AMP) {
+            end++;
+        }
+
+        if (end < count && tokens[end].type == OP_AMP) {
+            bg = 1;
+        }
+
+        int seg_count = end - start;
+        if (seg_count > 0) {
+            execute_single_pipeline(tokens + start, seg_count, home_dir, prev_dir, bg);
+        }
+
+        if (end < count) end++;
+        start = end;
     }
 }

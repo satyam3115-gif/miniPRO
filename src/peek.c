@@ -192,7 +192,7 @@ void execute_peek(token tokens[], int count) {
   for (int i = 1; i < count; i++) {
     if (tokens[i].values[0] == '-' && strlen(tokens[i].values) > 1 &&
         strcmp(tokens[i].values, "-") != 0) {
-      for (int j = 1; j < strlen(tokens[i].values); j++) {
+      for (int j = 1; j < (int)strlen(tokens[i].values); j++) {
         if (tokens[i].values[j] == 'n')
           num_lines = 1;
         else if (tokens[i].values[j] == 'r')
