@@ -22,10 +22,10 @@ int main(){
     char *username = profile->pw_name;
     char prev_dir[1024] = "";
     
-    // ignore SIGTTOU initially so setpgid / tcsetpgrp works
+    
     signal(SIGTTOU, SIG_IGN);
     
-    // Put shell in its own process group
+    
     pid_t shell_pgid = getpid();
     setpgid(shell_pgid, shell_pgid);
     tcsetpgrp(STDIN_FILENO, shell_pgid);

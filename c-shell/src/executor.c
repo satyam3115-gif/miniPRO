@@ -191,8 +191,8 @@ static void execute_command(Command *cmd, char *home_dir, char *prev_dir) {
                strcmp(cmd->args[0], "ping") == 0 ||
                strcmp(cmd->args[0], "spy") == 0 ||
                strcmp(cmd->args[0], "snoop") == 0) {
-        // Built-ins shouldn't normally reach here as child processes,
-        // but if they do (e.g. part of pipeline), just exit 0 after printing error or running
+        
+        
         printf("cshell: %s not supported in pipeline\n", cmd->args[0]);
         exit(0);
     }
@@ -256,7 +256,7 @@ static int execute_single_pipeline(token tokens[], int count, char *home_dir, ch
             if (i == 0) pgid = getpid();
             setpgid(0, pgid);
             
-            // Restore signal handlers for children
+            
             struct sigaction sa;
             sa.sa_handler = SIG_DFL;
             sigemptyset(&sa.sa_mask);
@@ -392,9 +392,9 @@ void execute_pipeline(token tokens[], int count, char *home_dir, char *prev_dir)
         if (seg_count > 0) {
             int result = execute_single_pipeline(tokens + start, seg_count, home_dir, prev_dir, bg);
             if (!bg) {
-                check_bg_jobs(); // Still a good place to reap background jobs
+                check_bg_jobs(); 
                 if (result == -1) {
-                    break; // stop on command not found in sequential
+                    break; 
                 }
             }
         }

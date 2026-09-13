@@ -10,10 +10,10 @@
 #include "../include/snoop.h"
 #include "../include/executor.h"
 
-// Mac OS doesn't have orig_rax or PTRACE_SYSCALL natively via ptrace in standard ways
-// that match Linux. This code assumes it is compiled on a Linux x86_64 environment.
-// For robustness on macOS, this file will compile with stubs if Linux headers are missing,
-// but since the assignment specifies PTRACE_SYSCALL, we proceed assuming a Linux context.
+
+
+
+
 
 #if defined(__linux__) && defined(__x86_64__)
 #define SNOOP_SUPPORTED 1
@@ -38,7 +38,7 @@ extern long ptrace(int request, pid_t pid, void *addr, void *data);
 #define SNOOP_SUPPORTED 0
 #endif
 
-// Since compilation might fail on Mac, we will mock the functionality if it's not supported.
+
 #if SNOOP_SUPPORTED
 
 #define MAX_SYSCALLS 500
@@ -55,7 +55,7 @@ static SyscallStat stats[MAX_SYSCALLS];
 static int occurrence_counter = 0;
 
 static const char* get_syscall_name(int id) {
-    // Lookup table for common syscalls on x86_64
+    
     switch(id) {
         case 0: return "read";
         case 1: return "write";
@@ -282,7 +282,7 @@ void execute_snoop(char *args[], int arg_count) {
         pid = atoi(args[2]);
         is_attach = 1;
         
-        // Verify process exists
+        
         char path[256];
         snprintf(path, sizeof(path), "/proc/%d", pid);
         if (access(path, F_OK) != 0) {
@@ -307,12 +307,12 @@ void execute_snoop(char *args[], int arg_count) {
         pid = fork();
         if (pid == 0) {
             ptrace(PTRACE_TRACEME, 0, NULL, NULL);
-            // Search for executable like executor does
+            
             char *exec_args[MAX_ARGS];
             for (int i = 1; i < arg_count; i++) exec_args[i - 1] = args[i];
             exec_args[arg_count - 1] = NULL;
             
-            // For simplicity, just use execvp in child
+            
             execvp(exec_args[0], exec_args);
             printf("snoop: command not found\n");
             exit(127);
@@ -323,11 +323,11 @@ void execute_snoop(char *args[], int arg_count) {
     waitpid(pid, &status, 0);
 
     if (WIFEXITED(status) && WEXITSTATUS(status) == 127) {
-        // Child failed to exec
+        
         return;
     }
 
-    // Set ptrace options
+    
     ptrace(PTRACE_SETOPTIONS, pid, 0, PTRACE_O_TRACESYSGOOD);
 
     int in_syscall = 0;
@@ -364,7 +364,7 @@ void execute_snoop(char *args[], int arg_count) {
         }
     }
 
-    // Sort and print
+    
     SyscallStat sorted_stats[MAX_SYSCALLS];
     int sorted_count = 0;
     for (int i = 0; i < MAX_SYSCALLS; i++) {
@@ -389,8 +389,8 @@ void execute_snoop(char *args[], int arg_count) {
 
 #else
 
-// Mock implementation for non-Linux x86_64 systems (like macOS)
-// It just prints an error because we can't use /proc or PTRACE_SYSCALL natively.
+
+
 void execute_snoop(char *args[], int arg_count) {
     (void)args;
     (void)arg_count;

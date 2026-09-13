@@ -73,7 +73,7 @@ void execute_resume(char *args[], int arg_count) {
             alarm_fired = 0;
             sa.sa_handler = alarm_handler;
             sigemptyset(&sa.sa_mask);
-            sa.sa_flags = 0; // Don't restart waitpid
+            sa.sa_flags = 0; 
             sigaction(SIGALRM, &sa, &old_sa);
             alarm(timeout);
         }
@@ -83,7 +83,7 @@ void execute_resume(char *args[], int arg_count) {
         int job_done = 0;
         int job_stopped = 0;
 
-        // Wait for all processes in the group
+        
         while (1) {
             w = waitpid(-j->pgid, &status, WUNTRACED);
             if (w == -1) {
@@ -92,7 +92,7 @@ void execute_resume(char *args[], int arg_count) {
                         break;
                     }
                     if (was_sigint()) {
-                        break; // Will let it exit naturally or be handled below
+                        break; 
                     }
                     continue;
                 }
@@ -107,7 +107,7 @@ void execute_resume(char *args[], int arg_count) {
                 break;
             }
 
-            // Check if all are done
+            
             job_done = 1;
             for (int i = 0; i < j->proc_count; i++) {
                 if (j->procs[i].pid == w) {
@@ -121,7 +121,7 @@ void execute_resume(char *args[], int arg_count) {
         }
 
         if (timeout > 0) {
-            alarm(0); // Cancel alarm
+            alarm(0); 
             sigaction(SIGALRM, &old_sa, NULL);
         }
 

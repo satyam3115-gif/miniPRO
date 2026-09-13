@@ -41,8 +41,8 @@ void execute_ping(char *args[], int arg_count) {
         printf("Sent signal %d to %s\n", sig_num, target);
     } else {
         if (!is_valid_number(target)) {
-            // Technically the spec says ping: no such process found if it's just invalid, 
-            // but let's assume valid pid. If it's invalid pid format, it won't be tracked anyway.
+            
+            
             printf("ping: no such process found\n");
             return;
         }

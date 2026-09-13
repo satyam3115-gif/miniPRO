@@ -53,7 +53,7 @@ int frecency_lookup(char *home_dir, char *name) {
     snprintf(file_path, sizeof(file_path), "%s/.cshell_frecency", home_dir);
     
     FILE *f = fopen(file_path, "r");
-    if (!f) return 0; // No history exists yet
+    if (!f) return 0; 
     
     FrecencyEntry matches[1000];
     int match_count = 0;

@@ -33,7 +33,7 @@ void init_all_signals() {
 
     sa_int.sa_handler = sigint_handler;
     sigemptyset(&sa_int.sa_mask);
-    sa_int.sa_flags = 0; // Don't restart, we want to interrupt fgets
+    sa_int.sa_flags = 0; 
     sigaction(SIGINT, &sa_int, NULL);
 
     sa_tstp.sa_handler = SIG_IGN;
@@ -163,7 +163,7 @@ void check_bg_jobs() {
                 }
             }
             
-            // Check if all procs in job exited
+            
             int all_exited = 1;
             for (int i = 0; i < j->proc_count; i++) {
                 if (!j->procs[i].exited) {
@@ -175,7 +175,7 @@ void check_bg_jobs() {
                 j->active = 0;
             }
         } else if (WIFSTOPPED(status)) {
-            // Should be handled by foreground wait, but track just in case
+            
             j->state = JOB_STOPPED;
         } else if (WIFCONTINUED(status)) {
             j->state = JOB_RUNNING;
@@ -184,7 +184,7 @@ void check_bg_jobs() {
     sigchld_received = 0;
 }
 
-// Compare function for qsort to sort by job_number (which correlates with launch order)
+
 static int compare_jobs(const void *a, const void *b) {
     Job *jobA = (Job *)a;
     Job *jobB = (Job *)b;
@@ -192,7 +192,7 @@ static int compare_jobs(const void *a, const void *b) {
 }
 
 void execute_activities() {
-    // Collect active jobs
+    
     Job active_jobs[MAX_JOBS];
     int active_count = 0;
     for (int i = 0; i < job_count; i++) {
@@ -201,7 +201,7 @@ void execute_activities() {
         }
     }
 
-    // Sort by launch order
+    
     qsort(active_jobs, active_count, sizeof(Job), compare_jobs);
 
     for (int i = 0; i < active_count; i++) {

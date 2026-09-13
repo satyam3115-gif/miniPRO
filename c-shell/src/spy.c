@@ -53,11 +53,11 @@ static void list_memory_mapped_files(pid_t pid) {
     while (fgets(line, sizeof(line), f)) {
         char *path_start = strchr(line, '/');
         if (path_start) {
-            // Trim newline
+            
             int idx = strcspn(path_start, "\n");
             path_start[idx] = '\0';
             
-            // Check if already printed
+            
             int is_new = 1;
             for (int i = 0; i < printed_count; i++) {
                 if (strcmp(printed_paths[i], path_start) == 0) {
