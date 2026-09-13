@@ -5,6 +5,8 @@
 #include <fcntl.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
+#include <signal.h>
+#include <errno.h>
 #include "../include/parser.h"
 #include "../include/lexer.h"
 #include "../include/hop.h"
@@ -12,6 +14,11 @@
 #include "../include/peek.h"
 #include "../include/locate.h"
 #include "../include/executor.h"
+#include "../include/jobs.h"
+#include "../include/resume.h"
+#include "../include/ping_cmd.h"
+#include "../include/spy.h"
+#include "../include/snoop.h"
 
 #define MAX_CMDS 128
 #define MAX_ARGS 128
@@ -179,40 +186,90 @@ static void execute_command(Command *cmd, char *home_dir, char *prev_dir) {
     } else if (strcmp(cmd->args[0], "locate") == 0) {
         execute_locate(clean_tokens, cmd->arg_count);
         exit(0);
+    } else if (strcmp(cmd->args[0], "activities") == 0 ||
+               strcmp(cmd->args[0], "resume") == 0 ||
+               strcmp(cmd->args[0], "ping") == 0 ||
+               strcmp(cmd->args[0], "spy") == 0 ||
+               strcmp(cmd->args[0], "snoop") == 0) {
+        // Built-ins shouldn't normally reach here as child processes,
+        // but if they do (e.g. part of pipeline), just exit 0 after printing error or running
+        printf("cshell: %s not supported in pipeline\n", cmd->args[0]);
+        exit(0);
     }
 
     char* exec_path = resolve_executable(cmd->args[0]);
     if (!exec_path) {
         printf("cshell: command not found (%s)\n", cmd->args[0]);
-        exit(1);
+        exit(127);
     }
     cmd->args[cmd->arg_count] = NULL; 
     execv(exec_path, cmd->args);
     exit(1);
 }
 
-static void execute_single_pipeline(token tokens[], int count, char *home_dir, char *prev_dir, int bg) {
+static int execute_single_pipeline(token tokens[], int count, char *home_dir, char *prev_dir, int bg) {
     Command cmds[MAX_CMDS];
     int num_cmds = parse_pipeline(tokens, count, cmds);
 
-    if (!bg && num_cmds == 1 && cmds[0].arg_count > 0 && strcmp(cmds[0].args[0], "hop") == 0) {
-        token clean_tokens[MAX_ARGS];
-        for (int k = 0; k < cmds[0].arg_count; k++) {
-            clean_tokens[k].type = WORD;
-            strcpy(clean_tokens[k].values, cmds[0].args[k]);
+    if (!bg && num_cmds == 1 && cmds[0].arg_count > 0) {
+        char *cmd_name = cmds[0].args[0];
+        if (strcmp(cmd_name, "hop") == 0 ||
+            strcmp(cmd_name, "activities") == 0 ||
+            strcmp(cmd_name, "resume") == 0 ||
+            strcmp(cmd_name, "ping") == 0 ||
+            strcmp(cmd_name, "spy") == 0 ||
+            strcmp(cmd_name, "snoop") == 0) {
+            
+            token clean_tokens[MAX_ARGS];
+            for (int k = 0; k < cmds[0].arg_count; k++) {
+                clean_tokens[k].type = WORD;
+                strcpy(clean_tokens[k].values, cmds[0].args[k]);
+            }
+            
+            if (strcmp(cmd_name, "hop") == 0) {
+                execute_hop(clean_tokens, cmds[0].arg_count, home_dir, prev_dir);
+            } else if (strcmp(cmd_name, "activities") == 0) {
+                execute_activities();
+            } else if (strcmp(cmd_name, "resume") == 0) {
+                execute_resume(cmds[0].args, cmds[0].arg_count);
+            } else if (strcmp(cmd_name, "ping") == 0) {
+                execute_ping(cmds[0].args, cmds[0].arg_count);
+            } else if (strcmp(cmd_name, "spy") == 0) {
+                execute_spy(cmds[0].args, cmds[0].arg_count);
+            } else if (strcmp(cmd_name, "snoop") == 0) {
+                execute_snoop(cmds[0].args, cmds[0].arg_count);
+            }
+            return 0;
         }
-        execute_hop(clean_tokens, cmds[0].arg_count, home_dir, prev_dir);
-        return;
     }
 
     int pipes[MAX_CMDS][2];
     pid_t pids[MAX_CMDS];
+    pid_t pgid = 0;
+    ProcessInfo procs[MAX_CMDS];
 
     for (int i = 0; i < num_cmds; i++) {
         if (i < num_cmds - 1) pipe(pipes[i]);
 
         pids[i] = fork();
         if (pids[i] == 0) {
+            if (i == 0) pgid = getpid();
+            setpgid(0, pgid);
+            
+            // Restore signal handlers for children
+            struct sigaction sa;
+            sa.sa_handler = SIG_DFL;
+            sigemptyset(&sa.sa_mask);
+            sa.sa_flags = 0;
+            sigaction(SIGINT, &sa, NULL);
+            sigaction(SIGTSTP, &sa, NULL);
+            sigaction(SIGTTOU, &sa, NULL);
+
+            if (bg && i == 0) {
+                int devnull = open("/dev/null", O_RDONLY);
+                dup2(devnull, STDIN_FILENO);
+                close(devnull);
+            }
 
             if (i > 0) dup2(pipes[i - 1][0], STDIN_FILENO);
             if (i < num_cmds - 1) dup2(pipes[i][1], STDOUT_FILENO);
@@ -230,14 +287,89 @@ static void execute_single_pipeline(token tokens[], int count, char *home_dir, c
             execute_command(&cmds[i], home_dir, prev_dir);
         }
 
+        if (i == 0) pgid = pids[0];
+        setpgid(pids[i], pgid);
+        
+        procs[i].pid = pids[i];
+        strncpy(procs[i].cmd_name, cmds[i].args[0], 255);
+        procs[i].cmd_name[255] = '\0';
+        procs[i].exited = 0;
+
         if (i > 0) close(pipes[i - 1][0]);
         if (i < num_cmds - 1) close(pipes[i][1]);
     }
 
-    if (!bg) {
-        for (int i = 0; i < num_cmds; i++) {
-            waitpid(pids[i], NULL, 0);
+    char cmd_line[1024] = "";
+    for (int i = 0; i < num_cmds; i++) {
+        for (int j = 0; j < cmds[i].arg_count; j++) {
+            strcat(cmd_line, cmds[i].args[j]);
+            if (j < cmds[i].arg_count - 1) strcat(cmd_line, " ");
         }
+        if (i < num_cmds - 1) strcat(cmd_line, " | ");
+    }
+
+    if (!bg) {
+        tcsetpgrp(STDIN_FILENO, pgid);
+        
+        int job_num = add_job(pgid, procs, num_cmds, JOB_RUNNING, cmd_line);
+
+        int cmd_not_found = 0;
+        int job_stopped = 0;
+        int job_done = 0;
+
+        while (1) {
+            int status;
+            pid_t w = waitpid(-pgid, &status, WUNTRACED);
+            if (w == -1) {
+                if (errno == EINTR) {
+                    if (was_sigint()) {
+                        continue;
+                    }
+                    continue;
+                }
+                if (errno == ECHILD) {
+                    job_done = 1;
+                }
+                break;
+            }
+            
+            if (WIFEXITED(status) && WEXITSTATUS(status) == 127) {
+                cmd_not_found = 1;
+            }
+
+            if (WIFSTOPPED(status)) {
+                job_stopped = 1;
+                break;
+            }
+            
+            Job *j = find_job(job_num);
+            if (j) {
+                job_done = 1;
+                for (int i = 0; i < j->proc_count; i++) {
+                    if (j->procs[i].pid == w) {
+                        j->procs[i].exited = 1;
+                    }
+                    if (!j->procs[i].exited) job_done = 0;
+                }
+            }
+            if (job_done) break;
+        }
+
+        tcsetpgrp(STDIN_FILENO, getpgrp());
+
+        if (job_stopped) {
+            mark_job_state(job_num, JOB_STOPPED);
+            printf("[%d] + Stopped    %s\n", job_num, cmd_line);
+        } else if (job_done) {
+            remove_job(job_num);
+        }
+
+        return cmd_not_found ? -1 : 0;
+    } else {
+        int job_num = add_job(pgid, procs, num_cmds, JOB_RUNNING, cmd_line);
+        printf("[%d] %d\n", job_num, pgid);
+        fflush(stdout);
+        return 0;
     }
 }
 
@@ -258,7 +390,13 @@ void execute_pipeline(token tokens[], int count, char *home_dir, char *prev_dir)
 
         int seg_count = end - start;
         if (seg_count > 0) {
-            execute_single_pipeline(tokens + start, seg_count, home_dir, prev_dir, bg);
+            int result = execute_single_pipeline(tokens + start, seg_count, home_dir, prev_dir, bg);
+            if (!bg) {
+                check_bg_jobs(); // Still a good place to reap background jobs
+                if (result == -1) {
+                    break; // stop on command not found in sequential
+                }
+            }
         }
 
         if (end < count) end++;
