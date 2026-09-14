@@ -30,7 +30,7 @@ int main(int argc, char *argv[])
         // CPU bound process
         // Spins in a loop to consume CPU time
         volatile int dummy = 0;
-        for (long long i = 0; i < 2000000000LL; i++) {
+        for (long long i = 0; i < 1000000000LL; i++) {
           dummy += i;
         }
       } else if (n == 2 || n == 3) {
@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
         // Alternates between CPU bursts and I/O
         volatile int dummy = 0;
         for (int i = 0; i < 15; i++) {
-          for (long long j = 0; j < 80000000LL; j++) {
+          for (long long j = 0; j < 40000000LL; j++) {
             dummy += j;
           }
           pause(1);

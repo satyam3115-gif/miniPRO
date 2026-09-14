@@ -24,9 +24,9 @@ The plot demonstrates our processes correctly beginning at Queue 0 and descendin
 
 | Scheduler | Turnaround Time (TAT) | Waiting Time (WT) | Response Time (RT) |
 |-----------|-----------------------|-------------------|--------------------|
-| **FIFO**  | 0.00 | 0.00 | 0.00 |
-| **RR**    | 96.50 | 47.67 | 0.33 |
-| **MLFQ**  | 0.00 | 0.00 | 0.00 |
+| **FIFO**  | 103.17 | 75.83 | 7.50 |
+| **RR**    | 85.50 | 44.17 | 0.67 |
+| **MLFQ**  | 89.17 | 82.00 | 0.00 |
 
 ### Discussion
 
