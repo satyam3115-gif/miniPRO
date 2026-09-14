@@ -13,14 +13,14 @@ for sched in schedulers:
     os.system(f"make SCHEDULER={sched}")
     
     # Spawn qemu
-    child = pexpect.spawn(f"make qemu SCHEDULER={sched}", encoding='utf-8', timeout=60)
+    child = pexpect.spawn(f"make qemu SCHEDULER={sched}", encoding='utf-8', timeout=900)
     
     try:
         child.expect("init: starting sh", timeout=10)
         child.sendline("schedulertest")
         
         # Wait for test to complete
-        child.expect("schedulertest: all children completed", timeout=60)
+        child.expect("schedulertest: all children completed", timeout=900)
         
         # Get output
         output = child.before
@@ -89,7 +89,7 @@ plt.ylabel("Queue ID (0=Highest, 3=Lowest)")
 plt.title("MLFQ Scheduler: Process Queues over Time")
 plt.legend()
 plt.grid(True, linestyle='--', alpha=0.7)
-plt.savefig("../report_mlfq_plot.png")
+plt.savefig("report_mlfq_plot.png")
 
 # Generate report.md
 report_content = f"""# Mini-Project 1: xv6 Schedulers Report
