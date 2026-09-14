@@ -12,7 +12,7 @@ int main(int argc, char *argv[])
   int monitor_pid = fork();
   if (monitor_pid == 0) {
     // Monitor process
-    for (int i = 0; i < 200; i++) {
+    for (int i = 0; i < 400; i++) {
       dump_queues();
       pause(1);
     }
@@ -30,21 +30,21 @@ int main(int argc, char *argv[])
         // CPU bound process
         // Spins in a loop to consume CPU time
         volatile int dummy = 0;
-        for (long long i = 0; i < 200000000LL; i++) {
+        for (long long i = 0; i < 2000000000LL; i++) {
           dummy += i;
         }
       } else if (n == 2 || n == 3) {
         // I/O bound process
         // Sleeps frequently to simulate I/O waits and keep priority high
-        for (int i = 0; i < 50; i++) {
+        for (int i = 0; i < 150; i++) {
           pause(1); 
         }
       } else {
         // Mixed process
         // Alternates between CPU bursts and I/O
         volatile int dummy = 0;
-        for (int i = 0; i < 10; i++) {
-          for (long long j = 0; j < 20000000LL; j++) {
+        for (int i = 0; i < 15; i++) {
+          for (long long j = 0; j < 80000000LL; j++) {
             dummy += j;
           }
           pause(1);
